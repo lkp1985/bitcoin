@@ -1,0 +1,11 @@
+settings
+.settings
+.classpath
+.project
+/target
+/target/*
+class
+*.class
+*.bak
+*.jar
+thinktank-front2
