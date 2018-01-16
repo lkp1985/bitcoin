@@ -144,7 +144,7 @@ public class GraphClient   implements AutoCloseable
             		update.set("outTx", outTxRelation.getOutTx());
                     mongoTemplate.upsert(query, update, TxRelation.class); 
         		}catch(Exception e){
-        			logger.error("save mongodb error:"+e.getMessage(),e);
+        			logger.error("save mongodb error:"+outTxRelation+",\n"+ e.getMessage(),e);
         		}
         		
         	}

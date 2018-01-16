@@ -22,14 +22,14 @@ import com.lkp.redis.RedisService;
 import com.neemre.btcdcli4j.core.domain.Block;
 
 /**
- * 定时发送最近一个blockhash
+ * 定时抓取数据，主要是btc.com  查看有话题的btc 地址
  * 
  * @author lkp
  *
  */
 @Component
-public class TimeSendBlock {
-	private static final Logger logger = LoggerFactory.getLogger(TimeSendBlock.class);
+public class CrawlerData {
+	private static final Logger logger = LoggerFactory.getLogger(CrawlerData.class);
 
 	// @Autowired
 	// private BlockProducer producer;

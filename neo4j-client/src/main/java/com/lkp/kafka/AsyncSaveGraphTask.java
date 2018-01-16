@@ -7,6 +7,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +38,7 @@ public class AsyncSaveGraphTask {
 	 
 	 
 	 
-	@Autowired
+	//@Autowired
     FetchBlock fetchBlock;
 	@Async  
     public void test(String blockhash) throws InterruptedException{  
@@ -46,10 +48,31 @@ public class AsyncSaveGraphTask {
 	}
 	
 	@Async  
+    public void saveBlockTx(String height) throws InterruptedException, ExecutionException{  
+		 
+		Query query = new Query();
+	     Criteria criteria = Criteria.where("height").is(Integer.parseInt(height));
+	     query.addCriteria(criteria);
+	     MyBlock block = mongoTemplate.findOne(query, MyBlock.class);
+	     if(block!=null){
+	    	 List<TransactionEntity> entityList = BlockUtil.blockTransfer(block);
+		     for(TransactionEntity entity : entityList){
+		    	 graphClient.saveTransactionInfo(entity);
+		     }
+			 System.out.println("block="+block.getHeight()+" save success");
+	     }else{
+	    	 System.out.println("block :"+height+" is null");
+	     }
+	    
+		
+	}
+	
+	
+	@Async  
     public void saveBlock(String blockhash,int height) throws InterruptedException, ExecutionException{  
 		org.bitcoinj.core.Block block = fetchBlock.getBlock(blockhash);
 		
-		MyBlock myBlock = BlockUtil.BlockTransfer(block);
+		MyBlock myBlock = BlockUtil.blockTransfer(block);
 		myBlock.setHeight(height);
 		mongoTemplate.save(myBlock);
 		

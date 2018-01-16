@@ -15,9 +15,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-public class ServerApplication   {
+public class BlockApplication   {
     public static void main(String[] args) throws IOException {
-        SpringApplication.run(ServerApplication.class, args);
+        SpringApplication.run(BlockApplication.class, args);
     }
     
     

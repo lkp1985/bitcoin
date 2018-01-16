@@ -11,6 +11,8 @@ import com.lkp.neo4j.entity.BaseTransaction;
 import com.lkp.neo4j.entity.InputTransaction;
 import com.lkp.neo4j.entity.MyBlock;
 import com.lkp.neo4j.entity.OutputTransaction;
+import com.lkp.neo4j.entity.TransactionEntity;
+import com.lkp.neo4j.entity.TxRelation;
 
 /**
  * 
@@ -18,7 +20,7 @@ import com.lkp.neo4j.entity.OutputTransaction;
  *
  */
 public class BlockUtil {
-	public static MyBlock BlockTransfer(Block block){
+	public static MyBlock blockTransfer(Block block){
 		MyBlock myBlock = new MyBlock();
 		
 		String blockhash = block.getHashAsString();
@@ -69,5 +71,37 @@ public class BlockUtil {
 				 				
 			}
 		return myBlock;
+	}
+	
+	public static List<TransactionEntity> blockTransfer(MyBlock myBlock){
+		List<TransactionEntity> entityList = new ArrayList<TransactionEntity>();
+		for(BaseTransaction baseTransaction : myBlock.getBaseTxList()){
+			String txHash = baseTransaction.getTxid();
+			TransactionEntity entity = new TransactionEntity();
+			entityList.add(entity);
+			entity.setHeight(myBlock.getHeight());
+			entity.setBlockhash(myBlock.getBlockhash());
+			List<TxRelation> inTxRelationList = new ArrayList<TxRelation>();
+			List<TxRelation> outTxRelationList = new ArrayList<TxRelation>();
+			entity.setInTxRelationList(inTxRelationList);
+			entity.setOutTxRelationList(outTxRelationList);
+			for(InputTransaction inputTx : baseTransaction.getInputList()){
+				TxRelation txRelation = new TxRelation();
+				int index = inputTx.getIndex();
+				String inputTxId = inputTx.getTxid();
+				txRelation.setInTx(baseTransaction.getTxid());//需要设置当前交易的txid，而不能设置inputTx的Txid
+				txRelation.setTxIndex(inputTxId+"_"+index);
+				inTxRelationList.add(txRelation);
+			}
+			for(OutputTransaction outputTx : baseTransaction.getOutputList()){
+				TxRelation txRelation = new TxRelation();
+				txRelation.setAddress(outputTx.getOutaddress());
+				txRelation.setMoney(outputTx.getMoney());
+				txRelation.setOutTx(baseTransaction.getTxid());
+				txRelation.setTxIndex(baseTransaction.getTxid()+"_"+outputTx.getIndex());
+				outTxRelationList.add(txRelation);
+			}
+		}
+		return entityList;
 	}
 }
