@@ -1,0 +1,112 @@
+@charset "utf-8";
+
+#popup_container {
+	font-size: 14px;
+	min-width: 300px; /* Dialog will be no smaller than this */
+	max-width: 600px; /* Dialog will wrap after this width */
+	background: #FFF;
+	border: solid 1px #ddd;
+	color: #555;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+	-moz-box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+	-webkit-background-clip: padding-box;
+	-moz-background-clip: padding;
+	background-clip: padding-box;
+	z-index: 100050;
+}
+
+#popup_title {
+	font-size: 14px;
+	font-weight: bold;
+	text-align: center;
+	line-height: 1.75em;
+	color: #666;
+	background: #CCC url('../images/jAlert/__title.gif') top repeat-x;
+	border: solid 1px #FFF;
+	border-bottom: solid 1px #999;
+	cursor: default;
+	padding: 0;
+	margin: 0;
+	display: none;
+}
+
+#popup_content {
+	background: 16px center no-repeat url('../images/jAlert/info.png');
+	padding: 20px 20px 20px 20px;
+	margin: 0;
+}
+
+.close {
+	float: right;
+	font-size: 20px;
+	font-weight: bold;
+	line-height: 18px;
+	color: #000000;
+	text-shadow: 0 1px 0 #ffffff;
+	opacity: 0.2;
+	filter: alpha(opacity=20);
+	background: 0 center no-repeat url('../images/jAlert/close.png');
+	width: 18px;
+	height: 18px;
+}
+
+.close:hover {
+	opacity: 1;
+	filter: alpha(opacity=0);
+}
+
+.loading #popup_content {
+	background-image: url('../images/jAlert/__loading.gif');
+}
+
+.alert #popup_content {
+	background-image: url('../images/jAlert/info.png');
+	background-position: 22px 14px;
+}
+
+.confirm #popup_content {
+	background-image: url('../images/jAlert/info.png');
+	background-position: 22px 14px;
+}
+
+.prompt #popup_content {
+	background-image: url('../images/jAlert/__help.gif');
+}
+
+#popup_message {
+	padding-left: 35px;
+	text-align: center;
+}
+
+#popup_panel {
+	text-align: center;
+	margin: 1em 0 0 0;
+}
+
+#popup_prompt {
+	margin: .5em 1em;
+}
+
+.notify #popup_content {
+	background-image: url('../images/jAlert/ok.png');
+	background-position: 22px 14px;
+}
+
+.info #popup_content {
+	background-image: url('../images/jAlert/info.png');
+	background-position: 22px 14px;
+}
+
+.warn #popup_content {
+	background-image: url('../images/jAlert/warning.png');
+	background-position: 22px 14px;
+}
+
+.error #popup_content {
+	background-image: url('../images/jAlert/error.png');
+	background-position: 22px 14px;
+}
