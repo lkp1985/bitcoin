@@ -6,6 +6,5 @@ import com.lkp.neo4j.entity.Address;
 
 @Component
 public interface AddressRepository extends MongoRepository<Address, String> {
-    
 
 }

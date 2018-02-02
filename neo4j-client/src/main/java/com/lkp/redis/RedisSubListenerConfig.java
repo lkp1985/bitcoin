@@ -14,18 +14,20 @@ public class RedisSubListenerConfig {
 	
 	@Value("${parsetopic}")
 	String topic;
+	@Value("${downtopic}")
+	String downtopic;
     @Bean
     RedisMessageListenerContainer container(RedisConnectionFactory connectionFactory,
             MessageListenerAdapter listenerAdapter) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         System.out.println("topic="+topic);
-        container.addMessageListener(listenerAdapter, new PatternTopic(topic));
+        container.addMessageListener(listenerAdapter, new PatternTopic(downtopic));
         return container;
     }
     @Bean
     MessageListenerAdapter listenerAdapter(RedisReceiver redisReceiver) {
-        return new MessageListenerAdapter(redisReceiver, "receiveMessage");
+        return new MessageListenerAdapter(redisReceiver, "receiveMessage2");
     }
     @Bean
     StringRedisTemplate template(RedisConnectionFactory connectionFactory) {

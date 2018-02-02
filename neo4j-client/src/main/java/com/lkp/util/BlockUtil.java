@@ -46,11 +46,15 @@ public class BlockUtil {
 				//	output.toString();
 					if(output.getScriptPubKey().isSentToAddress()||output.getScriptPubKey().isPayToScriptHash()){
 						String address = output.getScriptPubKey().getToAddress(output.getParams()).toString();
-						
 						baseOutput.setOutaddress(address);
 						long value = output.getValue().value;
 						baseOutput.setMoney(value+"");
 						baseOutput.setIndex(output.getIndex());
+					}else{//coinbase 
+						String address=output.getScriptPubKey().getFromAddress(output.getParams()).toString();
+						baseOutput.setOutaddress(address); 
+						baseOutput.setMoney(output.getValue().getValue()+""); 
+						baseOutput.setIndex(0);
 					}
 				}catch(Exception e){ 
 					e.printStackTrace();
@@ -76,7 +80,7 @@ public class BlockUtil {
 	public static List<TransactionEntity> blockTransfer(MyBlock myBlock){
 		List<TransactionEntity> entityList = new ArrayList<TransactionEntity>();
 		for(BaseTransaction baseTransaction : myBlock.getBaseTxList()){
-			String txHash = baseTransaction.getTxid();
+			//String txHash = baseTransaction.getTxid();
 			TransactionEntity entity = new TransactionEntity();
 			entityList.add(entity);
 			entity.setHeight(myBlock.getHeight());
@@ -89,11 +93,22 @@ public class BlockUtil {
 				TxRelation txRelation = new TxRelation();
 				int index = inputTx.getIndex();
 				String inputTxId = inputTx.getTxid();
-				txRelation.setInTx(baseTransaction.getTxid());//需要设置当前交易的txid，而不能设置inputTx的Txid
-				txRelation.setTxIndex(inputTxId+"_"+index);
-				inTxRelationList.add(txRelation);
+				if(index==-1 && inputTxId == null){//矿工coinbase 不作处理
+					
+//					txRelation.setInTx(baseTransaction.getTxid()); 
+//					txRelation.setOutTx("coinbase_"+baseTransaction.getTxid()); //表示从coinbase 指向当前交易
+//					txRelation.setTxIndex("coinbase_"+baseTransaction.getTxid());
+//					inTxRelationList.add(txRelation);
+				}else{
+					txRelation.setInTx(baseTransaction.getTxid());//需要设置当前交易的txid，而不能设置inputTx的Txid
+					txRelation.setTxIndex(inputTxId+"_"+index);
+					inTxRelationList.add(txRelation);
+				}
 			}
 			for(OutputTransaction outputTx : baseTransaction.getOutputList()){
+				if(outputTx.getOutaddress()==null){
+					continue;
+				}
 				TxRelation txRelation = new TxRelation();
 				txRelation.setAddress(outputTx.getOutaddress());
 				txRelation.setMoney(outputTx.getMoney());

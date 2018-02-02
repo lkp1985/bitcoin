@@ -1,7 +1,6 @@
 package com.lkp;
 
 import java.io.IOException;
-import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.springframework.boot.SpringApplication;
@@ -17,6 +16,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableScheduling
 public class BlockApplication   {
     public static void main(String[] args) throws IOException {
+    	System.out.println("block start...");
         SpringApplication.run(BlockApplication.class, args);
     }
     
@@ -30,9 +30,9 @@ public class BlockApplication   {
     public AsyncTaskExecutor taskExecutor() { 
       ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor(); 
        executor.setThreadNamePrefix("BlockConsum_");
-      executor.setMaxPoolSize(48); 
+      executor.setMaxPoolSize(24); 
       executor.setQueueCapacity(5);  
-      executor.setCorePoolSize(24);
+      executor.setCorePoolSize(12);
       executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());  
       executor.initialize();  
       // 设置拒绝策略

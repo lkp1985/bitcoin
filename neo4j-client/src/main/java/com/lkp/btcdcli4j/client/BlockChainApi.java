@@ -38,7 +38,7 @@ public class BlockChainApi {
 	BtcdClient client ;
 	
 	public BlockChainApi(){
-		init();
+		//init();
 	}
 	
 	/**

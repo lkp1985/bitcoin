@@ -26,10 +26,10 @@ public class RedisReceiver {
     
     public void receiveMessage2(String message) {
     	try {
-		//	logger.info("in consume,"+message+" cunsume begin");
+		 	logger.info("in consume,"+message+" cunsume begin");
 			String blockhash = message.split(",")[0];
 			String height = message.split(",")[1];
-			asyncTask.saveBlock(blockhash,Integer.parseInt(height)); 
+			asyncTask.saveBlockTransaction(blockhash,Integer.parseInt(height)); 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

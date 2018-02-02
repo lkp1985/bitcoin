@@ -12,7 +12,7 @@ public class BlockConsumer {
 	@Autowired
 	AsyncSaveGraphTask asyncTask;
 	
-	@KafkaListener(topics = { "${spring.kafka.template.default-topic}" })
+	//@KafkaListener(topics = { "${spring.kafka.template.default-topic}" })
 	public void processMessage(String content) {
 		try {
 			logger.info("in consume,"+content+" cunsume begin");

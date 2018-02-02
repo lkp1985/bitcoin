@@ -12,13 +12,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.lkp.btcdcli4j.client.BlockChainApi;
-import com.lkp.neo4j.client.GraphClient;
+import com.lkp.neo4j.entity.BlockHeight;
+import com.lkp.neo4j.entity.BlockWithHeight;
 import com.lkp.neo4j.entity.LastBlock;
 import com.lkp.neo4j.entity.TxRelation;
-import com.lkp.neo4j.respository.AddressRepository;
+import com.lkp.neo4j.respository.BlockHeightRepository;
 import com.lkp.neo4j.respository.LastBlockRepository;
-import com.lkp.neo4j.respository.TxRelationRepository;
 import com.lkp.redis.RedisService;
+import com.lkp.util.BlockQueue;
 import com.neemre.btcdcli4j.core.domain.Block;
 
 /**
@@ -37,17 +38,20 @@ public class TimeSendBlock {
 	@Autowired
 	private BlockChainApi blockApi;
 
+//	@Autowired
+//	private TxRelationRepository txRelationRepo;
+//
+//	@Autowired
+//	private AddressRepository repo;
+	
 	@Autowired
-	private TxRelationRepository txRelationRepo;
+	private BlockHeightRepository heightRepo;
 
-	@Autowired
-	private AddressRepository repo;
-
-	@Autowired
-	private MongoTemplate mongoTemplate;
-
-	@Autowired
-	private GraphClient graphClient;
+ 	@Autowired
+ 	private MongoTemplate mongoTemplate;
+//
+//	@Autowired
+//	private GraphClient graphClient;
 
 	@Autowired
 	private LastBlockRepository lastBlockRepo;
@@ -71,11 +75,17 @@ public class TimeSendBlock {
 	@Value("${height}")
 	int height;
 
-	@Value("${topic}")
+	@Value("${topic}")//从mdb读取myblock解析后并重新写入txRelation的topic
 	String topic;
 	
 	@Value("${parsetopic}")
 	String parsetopic;
+	
+	@Value("${downtopic}")//下载block的topic
+	String downtopic;
+	
+	@Value("${maxThread}")
+	int maxThread;
 	// @Scheduled(cron="0/1 * * * * ?")
 	public void saveBlock() {
 		if (lastblockhash == null || lastblockhash.trim().length() == 0) {
@@ -105,20 +115,35 @@ public class TimeSendBlock {
 	/**
 	 *  发送blockhash供bitcoinj下载block数据
 	 */
-	//@Scheduled(cron = "0/1 * * * * ?")
+	@Scheduled(cron = "0/1 * * * * ?")
 	public void sendRedisDownBlock() {
-		if (lastblockhash == null || lastblockhash.trim().length() == 0) {
-			lastBlock = lastBlockRepo.findOne("1");
-			lastblockhash = lastBlock.getBlockhash();
-		}
-		if (lastblockhash == null) {
-			logger.error("lastblock get null");
+		if(BlockQueue.heightSet.size()>maxThread){
+			//logger.info("queue is full,return");
 			return;
 		}
-		Block block = blockApi.getBlock(lastblockhash);
-
-		redisService.sendChannelMess(topic, block.getHash()+","+block.getHeight());
-		lastblockhash = block.getPreviousBlockHash();
+		List<BlockHeight> heightList = heightRepo.findByHeight(height);
+		while(heightList!=null && heightList.size()>0){
+			logger.warn("height:"+height+" block has consumed");
+			height--;
+			heightList = heightRepo.findByHeight(height);
+		}
+//		Query query = new Query();
+//	    Criteria criteria = Criteria.where("height").is(height);
+//	    query.addCriteria(criteria);
+//		List<BlockWithHeight> blockWithHeihtList = mongoTemplate.find(query, BlockWithHeight.class);
+//		if(blockWithHeihtList==null || blockWithHeihtList.isEmpty()){
+//			return;
+//		}
+		BlockWithHeight blockWithHeight = new BlockWithHeight();
+		blockWithHeight.setBlockhash("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
+		blockWithHeight.setHeight(0);
+		//BlockWithHeight blockWithHeight = blockWithHeihtList.get(0);
+		redisService.sendChannelMess(downtopic, blockWithHeight.getBlockhash()+","+(height--));
+		
+		
+		
+//		redisService.sendChannelMess(topic, block.getHash()+","+block.getHeight());
+//		lastblockhash = block.getPreviousBlockHash();
 //		lastBlock.setBlockhash(block.getHash());
 //		lastBlock.setHeight(block.getHeight() + "");
 		//lastBlockRepo.save(lastBlock);
@@ -128,10 +153,24 @@ public class TimeSendBlock {
 	/**
 	 *  发送blockhash以供消费者从服务器下载mongodb中的交易数据，解析交易格式再次写入mongodb
 	 */
-	@Scheduled(cron = "* 0/1 * * * ?")
+	//@Scheduled(cron = "* 0/1 * * * ?")
 	public void sendRedisParseBlock() {
 		//if(height==500000)
-		redisService.sendChannelMess(parsetopic, (height--)+"");
+		if(BlockQueue.heightSet.size()>=maxThread){
+			//logger.info("queue is full,return");
+			return;
+		}
+		List<BlockHeight> heightList = heightRepo.findByHeight(height);
+		while(heightList!=null && heightList.size()>0){
+			logger.warn("height:"+height+" block has consumed");
+			height++;
+			heightList = heightRepo.findByHeight(height);
+		}
+		while(BlockQueue.heightSet.size()<maxThread){
+			logger.info("queue is empty:"+BlockQueue.heightSet.size()+" , will fill block:"+height);
+			redisService.sendChannelMess(parsetopic, (height++)+"");
+		}
+		
 	}
 	
 	

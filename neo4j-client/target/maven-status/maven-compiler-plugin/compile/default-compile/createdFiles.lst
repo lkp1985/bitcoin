@@ -54,7 +54,6 @@ com\lkp\kafka\KafkaConfiguration.class
 com\lkp\btcdcli4j\daemon\AutonomousDaemon.class
 com\lkp\btcdcli4j\daemon\RpcCapableDaemon$2.class
 com\lkp\kafka\Receiver.class
-com\lkp\ServerApplication.class
 com\lkp\btcdcli4j\util\BlockResourceUtils.class
 com\lkp\btcdcli4j\util\TransactionUtil.class
 com\lkp\neo4j\controller\TxController.class

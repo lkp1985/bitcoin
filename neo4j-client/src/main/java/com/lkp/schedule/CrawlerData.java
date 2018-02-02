@@ -1,25 +1,23 @@
 package com.lkp.schedule;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.lkp.btcdcli4j.client.BlockChainApi;
-import com.lkp.neo4j.client.GraphClient;
-import com.lkp.neo4j.entity.LastBlock;
-import com.lkp.neo4j.entity.TxRelation;
-import com.lkp.neo4j.respository.AddressRepository;
-import com.lkp.neo4j.respository.LastBlockRepository;
-import com.lkp.neo4j.respository.TxRelationRepository;
-import com.lkp.redis.RedisService;
-import com.neemre.btcdcli4j.core.domain.Block;
+import com.lkp.neo4j.entity.AddressBBS;
 
 /**
  * 定时抓取数据，主要是btc.com  查看有话题的btc 地址
@@ -30,272 +28,133 @@ import com.neemre.btcdcli4j.core.domain.Block;
 @Component
 public class CrawlerData {
 	private static final Logger logger = LoggerFactory.getLogger(CrawlerData.class);
-
-	// @Autowired
-	// private BlockProducer producer;
-
-	@Autowired
-	private BlockChainApi blockApi;
-
-	@Autowired
-	private TxRelationRepository txRelationRepo;
-
-	@Autowired
-	private AddressRepository repo;
-
+  
 	@Autowired
 	private MongoTemplate mongoTemplate;
-
-	@Autowired
-	private GraphClient graphClient;
-
-	@Autowired
-	private LastBlockRepository lastBlockRepo;
-
-	@Value("${timeBlockNum}")
-	int timeBlockNum;// 每次produce block的数目
-
-	@Value("${produce_on}")
-	int produce_on;
-	String lastblockhash;// 完整抓取题案开关
-	LastBlock lastBlock;
-	int total = 0;
-
-	@Autowired
-	RedisService redisService;
-
-	//@Autowired
-	FetchBlock fetchBlock;
-	int sum = 1;
-
-	@Value("${height}")
-	int height;
-
-	@Value("${topic}")
-	String topic;
 	
-	@Value("${parsetopic}")
-	String parsetopic;
-	// @Scheduled(cron="0/1 * * * * ?")
-	public void saveBlock() {
-		if (lastblockhash == null || lastblockhash.trim().length() == 0) {
-			lastBlock = lastBlockRepo.findOne("1");
-			height = Integer.parseInt(lastBlock.getHeight());
-			lastblockhash = lastBlock.getBlockhash();
-		}
-		// while(lastblockhash!=null){
-		// org.bitcoinj.core.Block block = null;
-		// try {
-		// block = fetchBlock.getBlock(lastblockhash);
-		// lastblockhash = block.getPrevBlockHash().toString();
-		// MyBlock myBlock = BlockUtil.BlockTransfer(block);
-		// myBlock.setHeight(height--);
-		// mongoTemplate.save(myBlock);
-		// System.out.println("total save block " + sum++);
-		// } catch (Exception e) {
-		// // TODO Auto-generated catch block
-		// logger.error("block height :"+height +" save error");
-		// e.printStackTrace();
-		// }
-		// }
-
-	}
-	
-	
+	private String nextblock="000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+	private String preblock = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
 	/**
-	 *  发送blockhash供bitcoinj下载block数据
+	 *  从btc.com上抓取数据
 	 */
 	//@Scheduled(cron = "0/1 * * * * ?")
-	public void sendRedisDownBlock() {
-		if (lastblockhash == null || lastblockhash.trim().length() == 0) {
-			lastBlock = lastBlockRepo.findOne("1");
-			lastblockhash = lastBlock.getBlockhash();
+	public void crawlerBtccomData() { 
+		while(true){
+			try{
+				List<AddressBBS> addressList = new ArrayList<AddressBBS>();
+				Document doc = Jsoup.parse(new URL("http://btc.com/"+nextblock), 5000);
+				List<AddressBBS> addresses = parseAddressBBS(doc);
+				if(addresses!=null){
+					addressList.addAll(addresses);
+				}
+				int pageCount = getPageNum(doc);
+				
+				if(pageCount>1){
+					for(int i=2;i<=pageCount;i++){
+						Document tdoc = Jsoup.parse(new URL("http://btc.com/"+nextblock+"?page=1&order_by=tx_block_idx&asc=1"), 5000);
+						addresses = parseAddressBBS(tdoc);
+						if(addresses!=null){
+							
+							addressList.addAll(addresses);
+						}
+					}
+				}
+				if(addressList.size()>0){
+					System.out.println("find bbs address:"+addresses+" in block:"+nextblock);
+					for(AddressBBS bbs : addressList){
+						mongoTemplate.save(bbs);
+					}
+				}
+				String temp = nextblock;
+				nextblock = getNextBlock(doc);
+				preblock = temp;
+				//Thread.sleep(1000);
+			}catch(Exception e){
+				e.printStackTrace();
+			}
 		}
-		if (lastblockhash == null) {
-			logger.error("lastblock get null");
-			return;
-		}
-		Block block = blockApi.getBlock(lastblockhash);
-
-		redisService.sendChannelMess(topic, block.getHash()+","+block.getHeight());
-		lastblockhash = block.getPreviousBlockHash();
-//		lastBlock.setBlockhash(block.getHash());
-//		lastBlock.setHeight(block.getHeight() + "");
-		//lastBlockRepo.save(lastBlock);
 	}
 
-	
-	/**
-	 *  发送blockhash以供消费者从服务器下载mongodb中的交易数据，解析交易格式再次写入mongodb
-	 */
-	@Scheduled(cron = "* 0/1 * * * ?")
-	public void sendRedisParseBlock() {
-		//if(height==500000)
-		redisService.sendChannelMess(parsetopic, (height--)+"");
-	}
-	
-	
-	// @Scheduled(cron="0/1 * * * * ?")
-	public void testRedis() {
-		redisService.sendChannelMess("test", "hello" + (total++));
-		try {
-			if (produce_on == 0) {
-				return;
+	public static List<AddressBBS> parseAddressBBS(Document doc){
+		try{
+			List<AddressBBS> addressList = new ArrayList<AddressBBS>();
+			
+			Elements eles =  doc.getElementsByTag("li");
+			for(Element ele : eles){
+				 
+				Elements liEles = ele.getElementsByClass("glyphicon-new-window");
+				if(liEles!=null && liEles.size()==1){
+					AddressBBS bbs = new AddressBBS();
+					addressList.add(bbs);
+					Elements aeles = ele.getElementsByTag("a");//https://btc.com/
+					String addressurl = aeles.get(0).attr("href");
+					String address = addressurl.substring(16);
+					String addressbbs = aeles.get(1).attr("href")	;
+					bbs.setAddress(address);
+					bbs.setUrl(addressbbs);
+					System.out.println("addressurl="+addressurl+",addressbbs="+addressbbs);
+				}
 			}
-			if (lastblockhash == null || lastblockhash.trim().length() == 0) {
-				lastBlock = lastBlockRepo.findOne("1");
-				lastblockhash = lastBlock.getBlockhash();
-			}
-			if (lastblockhash == null) {
-				logger.error("lastblock get null");
-				return;
-			}
-
-			for (int i = 0; i < timeBlockNum; i++) {// 一次取10个block
-				// producer.sendMessage(lastblockhash);
-				redisService.sendChannelMess("block", lastblockhash);
-
-				logger.info("send block:" + lastblockhash);
-				lastblockhash = blockApi.nextBlockHash(lastblockhash);
-				// producer.sendMessage(lastblock);
-			}
-			Block block = blockApi.getBlock(lastblockhash);
-
-			lastBlock.setBlockhash(block.getHash());
-			lastBlock.setHeight(block.getHeight() + "");
-			lastBlockRepo.save(lastBlock);
-			// logger.info("current
-			// block:"+lastblock+",height="+block.getHeight());
-			// save to lastBlock to mongodb
-
-			// List<String> txList = blockApi.getTxList(lastblock);
-			// for(String tx : txList){
-			// TransactionEntity entity = blockApi.getTx(tx);
-			// if(graphClient==null){
-			// graphClient.init();
-			// }
-			// graphClient.saveTxRelation(entity);
-			// }
-			// Set<String> addressSet =new HashSet<String>();
-			// List<Address> addressList = new ArrayList<Address>();
-			// for(String tx : txList){
-			// addressSet.addAll(blockApi.getOutAddress(tx));
-			// }
-			// for(String add : addressSet){
-			// Address address = new Address();
-			// address.setAddress(add);
-			// addressList.add(address);
-			// }
-			// repo.save(addressList);
-
-		} catch (Exception e) {
+			return addressList;
+		}catch(Exception e){
 			e.printStackTrace();
+			return null;
 		}
-
 	}
-
-	// @Scheduled(cron="0/1 * * * * ?")
-	public void executeGetArticleTask() {
-		try {
-			int index = 0;
-			while (index++ < 7) {
-				// lastblockhash = producer.sendMessage(lastblockhash);
+	public static int getPageNum(Document doc){
+		try{
+			Elements eles = doc.getElementsByTag("script");
+			for(Element ele : eles){
+				 
+				String globals = ele.html();
+				if(globals.startsWith("var globals")){
+					int index = globals.indexOf("page_count: '");
+					int index2 = globals.indexOf("enable_order_by:");
+					String pagecount = globals.substring(index+13, index2-11);
+					System.out.println("pagecount="+pagecount);
+					return Integer.parseInt(pagecount);
+				}
 			}
-			logger.info("lastblock=" + lastblockhash);
-		} catch (Exception e) {
+			return 0;
+//			int index = body.indexOf("page_count: '");
+//			String temp = body.substring(index+1);
+//			int index2 = temp.indexOf("'");
+//			String pageNum = body.substring(index, index2);
+			
+		}catch(Exception e	){
+			return 0;
+		}
+	}
+	
+	public String getNextBlock(Document doc){
+		Elements eles = doc.getElementsByAttribute("ga-target");
+		if(eles!=null && eles.size()>0){
+			for(Element ele : eles){
+				String text = ele.text();
+				if(!text.equals(nextblock) && !text.equals(preblock)){
+					return text;
+				}
+				System.out.println("text="+text);
+			}
+		}
+		return "";
+	}
+	public static void main(String[] args) {
+		try {
+			Document doc = Jsoup.parse(new URL("https://btc.com/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"), 5000);
+			parseAddressBBS(doc);
+			int pageCount = getPageNum(doc);
+			if(pageCount>1){
+				for(int i=2;i<=pageCount;i++){
+					doc = Jsoup.parse(new URL("http://btc.com/00000000000000000024fb37364cbf81fd49cc2d51c09c75c35433c3a1945d04?page="+i+"&order_by=tx_block_idx&asc=1"), 5000);
+					parseAddressBBS(doc);
+				}
+			}
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-	}
-
-	// @Scheduled(cron="0/1 * * * * ?")
-	public void test() {
-		TxRelation txRe = new TxRelation();
-		txRe.setTxIndex("11");
-		txRe.setAddress("abc");
-		txRe.setMoney("2.5");
-
-		List<TxRelation> txRelationList = new ArrayList<TxRelation>();
-		txRelationList.add(txRe);
-		txRe = new TxRelation();
-		txRe.setTxIndex("22");
-		txRe.setAddress("abc");
-		txRe.setMoney("2.5");
-		txRelationList.add(txRe);
-
-		// mongoTemplate.insert(txRelationList, TxRelation.class);
-		// mongoTemplate.save(txRelationList, "txRelation");
-		// txRelationRepo.save(txRe);
-		//
-		//// txRe = new TxRelation();
-		//// txRe.set_id("11");
-		//// txRe.setTxid("txabc");
-		//// txRe.setType("rollin");
-		//// txRelationRepo.save(txRe);
-		////
-		//
-		// Query query = Query.query(Criteria.where("_id").is("33"));
-		//
-		// //addToset：数组不存在则创建，同时不会加入重复的数据
-		// Update update = new Update().set("txid", "txabc");
-		// update.set("type", "rollin");
-		// mongoTemplate.upsert(query, update, TxRelation.class);
-
-	}
-
-	// @Scheduled(cron="0/1 * * * * ?")
-	public void saveAddress() {
-		try {
-			// if(total++>=1){
-			// return;
-			// }
-			if (produce_on == 0) {
-				return;
-			}
-			if (lastblockhash == null || lastblockhash.trim().length() == 0) {
-				lastBlock = lastBlockRepo.findOne("1");
-				lastblockhash = lastBlock.getBlockhash();
-			}
-			if (lastblockhash == null) {
-				logger.error("lastblock get null");
-				return;
-			}
-
-			for (int i = 0; i < timeBlockNum; i++) {// 一次取10个block
-				// producer.sendMessage(lastblockhash);
-				logger.info("send block:" + lastblockhash);
-				lastblockhash = blockApi.nextBlockHash(lastblockhash);
-				// producer.sendMessage(lastblock);
-			}
-			Block block = blockApi.getBlock(lastblockhash);
-
-			lastBlock.setBlockhash(block.getHash());
-			lastBlock.setHeight(block.getHeight() + "");
-			lastBlockRepo.save(lastBlock);
-			// logger.info("current
-			// block:"+lastblock+",height="+block.getHeight());
-			// save to lastBlock to mongodb
-
-			// List<String> txList = blockApi.getTxList(lastblock);
-			// for(String tx : txList){
-			// TransactionEntity entity = blockApi.getTx(tx);
-			// if(graphClient==null){
-			// graphClient.init();
-			// }
-			// graphClient.saveTxRelation(entity);
-			// }
-			// Set<String> addressSet =new HashSet<String>();
-			// List<Address> addressList = new ArrayList<Address>();
-			// for(String tx : txList){
-			// addressSet.addAll(blockApi.getOutAddress(tx));
-			// }
-			// for(String add : addressSet){
-			// Address address = new Address();
-			// address.setAddress(add);
-			// addressList.add(address);
-			// }
-			// repo.save(addressList);
-
-		} catch (Exception e) {
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

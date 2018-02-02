@@ -10,8 +10,6 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-//import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -35,8 +33,8 @@ public class GraphClient   implements AutoCloseable
 //	@Autowired
 //	TransactionRepository txRepo;
 	
-	@Autowired
-    private MongoTemplate mongoTemplate;
+//	@Autowired
+//    private MongoTemplate mongoTemplate;
 	
     private   GraphDatabaseService graphDb;
 
@@ -105,7 +103,7 @@ public class GraphClient   implements AutoCloseable
      * 先将节点及关系保存到mongodb,再通过mongodb导出csv格式，再通过neo4j-import 批量导入neo4j
      * @param txEntity
      */
-    public void saveTransactionInfo(TransactionEntity txEntity){
+    public void saveTransactionInfo( MongoTemplate mongoTemplate,TransactionEntity txEntity){
     	try{
     		//long start =  System.currentTimeMillis();
     		List<Address> addressList = TransactionUtil.getAddresses(txEntity);
@@ -121,44 +119,55 @@ public class GraphClient   implements AutoCloseable
         	}
         	long end = System.currentTimeMillis();
         	//logger.info("get txRelationList:"+size+" ,spend "+(end-start));
-        	try{
-        		mongoTemplate.save(transaction);
-        		
-        	}catch(Exception e){
-        		logger.error("save mongodb error:"+e.getMessage(),e);
-        	}
-        	
-        	for(Address address :addressList){
-        		try{
-        			mongoTemplate.save(address);
-        			
-        		}catch(Exception e){
-        			logger.error("save mongodb error:"+e.getMessage(),e);
-        		}
-        	}
+//        	try{
+//        		mongoTemplate.save(transaction);
+//        		
+//        	}catch(Exception e){
+//        		logger.error("save mongodb error:"+e.getMessage(),e);
+//        	}
+//        	
+//        	for(Address address :addressList){
+//        		try{
+//        			mongoTemplate.save(address);
+//        			
+//        		}catch(Exception e){
+//        			logger.error("save mongodb error:"+e.getMessage(),e);
+//        		}
+//        	}
         	for(TxRelation outTxRelation : outTxRelationList){
         		try{
         			Query query = Query.query(Criteria.where("_id").is(outTxRelation.getTxIndex()));
             		Update update = new Update().set("address", outTxRelation.getAddress());
             		update.set("money", outTxRelation.getMoney());
             		update.set("outTx", outTxRelation.getOutTx());
-                    mongoTemplate.upsert(query, update, TxRelation.class); 
+            		try{
+            			mongoTemplate.upsert(query, update, TxRelation.class); 
+            			
+            		}catch(Exception e){//可能会报唯一性错误 ，报错后再更新一次，
+            			mongoTemplate.upsert(query, update, TxRelation.class); 
+            		}
         		}catch(Exception e){
         			logger.error("save mongodb error:"+outTxRelation+",\n"+ e.getMessage(),e);
         		}
         		
         	}
+        	
+        //	mongoTemplate.insert(inTxRelationList, TxRelation.class);
         	for(TxRelation inTxRelation : inTxRelationList){
         		try{
         			Query query = Query.query(Criteria.where("_id").is(inTxRelation.getTxIndex()));
             		Update update = new Update().set("inTx", inTxRelation.getInTx());
-                    mongoTemplate.upsert(query, update, TxRelation.class); 
+                    try{
+                    	mongoTemplate.upsert(query, update, TxRelation.class); 
+                    }catch(Exception e){//可能会报唯一性错误 ，报错后再更新一次，
+                    	mongoTemplate.upsert(query, update, TxRelation.class);
+                    }
         		}catch(Exception e){
         			logger.error("save mongodb error:"+e.getMessage(),e);
         		}
         		
         	}
-        	logger.info("in blockheight:"+txEntity.getHeight()+" ,save  relation:"+size+", spend "+(System.currentTimeMillis() - end));
+        	//logger.info("in blockheight:"+txEntity.getHeight()+" ,save  relation:"+size+", spend "+(System.currentTimeMillis() - end));
     	}catch(Exception e){
     		logger.error(e.getMessage(),e);
     	}
