@@ -6,53 +6,15 @@ define(['jquery','app' ], function ($,app) {
 	 //http://39.108.92.223:8081/search?fields=title,leader&condition=建设&filts=sector:民盟&sort.field=leader&page=1&rows=10
     app.factory('mainService', ['$http','$q','$resource' , function($http,$q,$resource ) { 
     	
-    	function  searchResult(content,field,page){
+    	function  findPath(from,to,limit){
     		//alert("content="+content+",field="+field+",page="+page);
-    		var url = _projPath+ 'search?';
-			content = encodeURIComponent(content);
-			url = url+"condition="+content;
-			//url = encodeURIComponent(url);
-			if(field!=undefined){
-				url = url+"&fields="+field;
-			}
-			if(page!=undefined){
-				url = url+"&page="+page;
-			}  
+    		var url = _projPath+ 'path?startId='+from+'&endId='+to+"&limit="+limit;
 			console.log("url="+url); 
-			
 			return $resource(url, {});
  		}
-    	function  searchFacetResult(content,field){
-    		//alert("content="+content+",field="+field+",page="+page);
-    		var url = _projPath+ 'searchfacet?';
-			content = encodeURIComponent(content);
-			url = url+"condition="+content;
-			//url = encodeURIComponent(url);
-			if(field!=undefined){
-				url = url+"&fields="+field;
-			} 
-			console.log("url="+url); 
-			
-			return $resource(url, {});
- 		}
-    	function  getSearchHis(){
-    		//alert("content="+content+",field="+field+",page="+page);
-    		var url = _projPath+ 'searchhis?';
-			return $resource(url, {});
- 		}
-    	function  keywords(id){
-    		//alert("content="+content+",field="+field+",page="+page);
-    		var url = _projPath+ 'keywords/'+id;
-			return $resource(url, {});
- 		}
-    	
-    	function  getorganizer(id){
-    		//alert("content="+content+",field="+field+",page="+page);
-    		var url = _projPath+ 'organizer/'+id;
-			return $resource(url, {});
- 		}
+    	 
     	 return {
-    		 searchResult,getSearchHis,searchFacetResult,keywords,getorganizer
+    		 findPath 
 
     	  }
     }])
