@@ -24,7 +24,7 @@ public class TxController {
 	@Autowired
 	GraphClient  graphClient;
 	
-	@Autowired
+	//@Autowired
 	BlockChainApi blockApi;
 	/**
 	 * 根据区块ID，保存该block的所有交易关系

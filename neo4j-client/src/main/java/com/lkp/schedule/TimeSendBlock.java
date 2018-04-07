@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +37,7 @@ public class TimeSendBlock {
 	// @Autowired
 	// private BlockProducer producer;
 
-	@Autowired
+	//@Autowired
 	private BlockChainApi blockApi;
 
 //	@Autowired
@@ -61,7 +63,7 @@ public class TimeSendBlock {
 
 	@Value("${produce_on}")
 	int produce_on;
-	String lastblockhash;// 完整抓取题案开关
+	String lastblockhash; 
 	LastBlock lastBlock;
 	int total = 0;
 
@@ -86,6 +88,9 @@ public class TimeSendBlock {
 	
 	@Value("${maxThread}")
 	int maxThread;
+	
+	@Value("$blockhash")
+	String _blockhash;
 	// @Scheduled(cron="0/1 * * * * ?")
 	public void saveBlock() {
 		if (lastblockhash == null || lastblockhash.trim().length() == 0) {
@@ -115,7 +120,7 @@ public class TimeSendBlock {
 	/**
 	 *  发送blockhash供bitcoinj下载block数据
 	 */
-	@Scheduled(cron = "0/1 * * * * ?")
+	//@Scheduled(cron = "0/1 * * * * ?")
 	public void sendRedisDownBlock() {
 		if(BlockQueue.heightSet.size()>maxThread){
 			//logger.info("queue is full,return");
@@ -127,17 +132,17 @@ public class TimeSendBlock {
 			height--;
 			heightList = heightRepo.findByHeight(height);
 		}
-//		Query query = new Query();
-//	    Criteria criteria = Criteria.where("height").is(height);
-//	    query.addCriteria(criteria);
-//		List<BlockWithHeight> blockWithHeihtList = mongoTemplate.find(query, BlockWithHeight.class);
-//		if(blockWithHeihtList==null || blockWithHeihtList.isEmpty()){
-//			return;
-//		}
-		BlockWithHeight blockWithHeight = new BlockWithHeight();
-		blockWithHeight.setBlockhash("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
-		blockWithHeight.setHeight(0);
-		//BlockWithHeight blockWithHeight = blockWithHeihtList.get(0);
+		Query query = new Query();
+	    Criteria criteria = Criteria.where("height").is(height);
+	    query.addCriteria(criteria);
+		List<BlockWithHeight> blockWithHeihtList = mongoTemplate.find(query, BlockWithHeight.class);
+		if(blockWithHeihtList==null || blockWithHeihtList.isEmpty()){
+			return;
+		}
+//		BlockWithHeight blockWithHeight = new BlockWithHeight();
+//		blockWithHeight.setBlockhash("00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048");
+//		blockWithHeight.setHeight(1);
+		BlockWithHeight blockWithHeight = blockWithHeihtList.get(0);
 		redisService.sendChannelMess(downtopic, blockWithHeight.getBlockhash()+","+(height--));
 		
 		
@@ -153,7 +158,7 @@ public class TimeSendBlock {
 	/**
 	 *  发送blockhash以供消费者从服务器下载mongodb中的交易数据，解析交易格式再次写入mongodb
 	 */
-	//@Scheduled(cron = "* 0/1 * * * ?")
+	@Scheduled(cron = "* 0/1 * * * ?")
 	public void sendRedisParseBlock() {
 		//if(height==500000)
 		if(BlockQueue.heightSet.size()>=maxThread){
@@ -166,6 +171,7 @@ public class TimeSendBlock {
 			height++;
 			heightList = heightRepo.findByHeight(height);
 		}
+		//redisService.sendChannelMess(parsetopic, (height++)+"");
 		while(BlockQueue.heightSet.size()<maxThread){
 			logger.info("queue is empty:"+BlockQueue.heightSet.size()+" , will fill block:"+height);
 			redisService.sendChannelMess(parsetopic, (height++)+"");
@@ -173,10 +179,28 @@ public class TimeSendBlock {
 		
 	}
 	
-	
-	// @Scheduled(cron="0/1 * * * * ?")
+	//@Scheduled(cron = "* 0/1 * * * ?")
+	public void sendDownBlockWithHeight() {
+		if(total++==0){
+			String blockhash = "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"	;//1
+			redisService.sendChannelMess(topic, blockhash);
+			blockhash = "000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506";//100000
+			redisService.sendChannelMess(topic, blockhash);
+			blockhash = "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf";//200000
+			redisService.sendChannelMess(topic, blockhash);
+			blockhash = "000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254";//300000
+			redisService.sendChannelMess(topic, blockhash);
+			blockhash = "000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f";//400000
+			redisService.sendChannelMess(topic, blockhash);
+			blockhash = "00000000000000000024fb37364cbf81fd49cc2d51c09c75c35433c3a1945d04";//500000
+			redisService.sendChannelMess(topic, blockhash);
+		}
+		
+		
+	}
+//	@Scheduled(cron="0/1 * * * * ?")
 	public void testRedis() {
-		redisService.sendChannelMess("test", "hello" + (total++));
+		//redisService.sendChannelMess("test", "hello" + (total++));
 		try {
 			if (produce_on == 0) {
 				return;

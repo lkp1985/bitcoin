@@ -22,7 +22,7 @@ public class BlockProducer {
     private KafkaTemplate kafkaTemplate;
 	@Value("${spring.kafka.template.default-topic}")
 	private String topic;
-	@Autowired
+	//@Autowired
 	private BlockChainApi blockApi;
 	@SuppressWarnings("unchecked")
 	public String sendMessage(String block){

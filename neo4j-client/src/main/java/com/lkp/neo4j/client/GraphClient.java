@@ -100,7 +100,7 @@ public class GraphClient   implements AutoCloseable
     }
      
     /**
-     * 先将节点及关系保存到mongodb,再通过mongodb导出csv格式，再通过neo4j-import 批量导入neo4j
+     * 将节点及关系保存到mongodb txRelation表
      * @param txEntity
      */
     public void saveTransactionInfo( MongoTemplate mongoTemplate,TransactionEntity txEntity){

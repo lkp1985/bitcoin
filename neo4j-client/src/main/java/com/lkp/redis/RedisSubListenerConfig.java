@@ -13,21 +13,24 @@ import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 public class RedisSubListenerConfig {
 	
 	@Value("${parsetopic}")
-	String topic;
+	String parsetopic;
 	@Value("${downtopic}")
 	String downtopic;
+	@Value("${topic}")
+	String topic;
     @Bean
     RedisMessageListenerContainer container(RedisConnectionFactory connectionFactory,
             MessageListenerAdapter listenerAdapter) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         System.out.println("topic="+topic);
-        container.addMessageListener(listenerAdapter, new PatternTopic(downtopic));
+        container.addMessageListener(listenerAdapter, new PatternTopic(parsetopic));
         return container;
     }
     @Bean
     MessageListenerAdapter listenerAdapter(RedisReceiver redisReceiver) {
-        return new MessageListenerAdapter(redisReceiver, "receiveMessage2");
+    	 
+        return new MessageListenerAdapter(redisReceiver, "receiveMessage");
     }
     @Bean
     StringRedisTemplate template(RedisConnectionFactory connectionFactory) {

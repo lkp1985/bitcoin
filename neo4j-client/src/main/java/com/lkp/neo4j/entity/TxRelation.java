@@ -9,7 +9,7 @@ import lombok.Data;
  *
  */
 @Data
-public class TxRelation {
+public class TxRelation { 
 	@Id
 	String txIndex;
 	String outTx;

@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Component
-public final class BlockResourceUtils {
+public final class BlockResourceUtils { 
 //	node.bitcoind.rpc.protocol = http
 //			node.bitcoind.rpc.host = 192.168.1.3
 //			node.bitcoind.rpc.port = 8332
@@ -78,10 +78,10 @@ public final class BlockResourceUtils {
 //		nodeConfig.put("node.bitcoind.notification.block.port", block_port);
 //		nodeConfig.put("node.bitcoind.notification.wallet.port", wallet_port);
 		String file = "/home/workspace/neo4j_home/node_config.properties";
-//		//String file = "D:\\workspace_lkp\\neo4j-client\\src\\main\\resources\\node_config.properties";
 		File f = new File(file);
 		if(!f.exists()){
-			f = new File("src/main/resources/node_config.properties");
+		//	f = new File("src/main/resources/node_config.properties");
+			f = new File("D:\\workspace_lkp\\neo4j-client\\src\\main\\resources\\node_config.properties");
 		}
 		InputStream inputStream = new BufferedInputStream(new FileInputStream(
 				f));

@@ -13,6 +13,7 @@ import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -32,7 +33,9 @@ public class CrawlerData {
 	@Autowired
 	private MongoTemplate mongoTemplate;
 	
-	private String nextblock="000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+	@Value("${crawlerBlock}")
+	private String crawlerBlock;
+	 
 	private String preblock = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
 	/**
 	 *  从btc.com上抓取数据
@@ -42,7 +45,7 @@ public class CrawlerData {
 		while(true){
 			try{
 				List<AddressBBS> addressList = new ArrayList<AddressBBS>();
-				Document doc = Jsoup.parse(new URL("http://btc.com/"+nextblock), 5000);
+				Document doc = Jsoup.parse(new URL("http://btc.com/"+crawlerBlock), 5000);
 				List<AddressBBS> addresses = parseAddressBBS(doc);
 				if(addresses!=null){
 					addressList.addAll(addresses);
@@ -51,26 +54,30 @@ public class CrawlerData {
 				
 				if(pageCount>1){
 					for(int i=2;i<=pageCount;i++){
-						Document tdoc = Jsoup.parse(new URL("http://btc.com/"+nextblock+"?page=1&order_by=tx_block_idx&asc=1"), 5000);
-						addresses = parseAddressBBS(tdoc);
-						if(addresses!=null){
-							
-							addressList.addAll(addresses);
+						try{
+							Document tdoc = Jsoup.parse(new URL("http://btc.com/"+crawlerBlock+"?page="+i+"&order_by=tx_block_idx&asc=1"), 10000);
+							addresses = parseAddressBBS(tdoc);
+							if(addresses!=null){
+								addressList.addAll(addresses);
+							}
+						}catch(Exception e){
+							logger.error(e.getMessage(),e);
 						}
+						
 					}
 				}
 				if(addressList.size()>0){
-					System.out.println("find bbs address:"+addresses+" in block:"+nextblock);
+					logger.info("find bbs address:"+addresses+" in block:"+crawlerBlock);
 					for(AddressBBS bbs : addressList){
 						mongoTemplate.save(bbs);
 					}
 				}
-				String temp = nextblock;
-				nextblock = getNextBlock(doc);
+				String temp = crawlerBlock;
+				crawlerBlock = getNextBlock(doc);
 				preblock = temp;
 				//Thread.sleep(1000);
 			}catch(Exception e){
-				e.printStackTrace();
+				logger.error(e.getMessage(),e);
 			}
 		}
 	}
@@ -92,7 +99,7 @@ public class CrawlerData {
 					String addressbbs = aeles.get(1).attr("href")	;
 					bbs.setAddress(address);
 					bbs.setUrl(addressbbs);
-					System.out.println("addressurl="+addressurl+",addressbbs="+addressbbs);
+					logger.info("addressurl="+addressurl+",addressbbs="+addressbbs);
 				}
 			}
 			return addressList;
@@ -129,13 +136,14 @@ public class CrawlerData {
 	public String getNextBlock(Document doc){
 		Elements eles = doc.getElementsByAttribute("ga-target");
 		if(eles!=null && eles.size()>0){
-			for(Element ele : eles){
-				String text = ele.text();
-				if(!text.equals(nextblock) && !text.equals(preblock)){
-					return text;
-				}
-				System.out.println("text="+text);
-			}
+			return eles.get(2).text();
+//			for(Element ele : eles){
+//				String text = ele.text();
+//				if(!text.equals(crawlerBlock) && !text.equals(preblock)){
+//					return text;
+//				}
+//				System.out.println("text="+text);
+//			}
 		}
 		return "";
 	}

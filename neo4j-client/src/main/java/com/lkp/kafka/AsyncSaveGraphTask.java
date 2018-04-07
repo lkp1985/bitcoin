@@ -6,7 +6,6 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.bitcoinj.core.TransactionOutput;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -18,6 +17,7 @@ import com.lkp.btcdcli4j.client.BlockChainApi;
 import com.lkp.btcdcli4j.util.TransactionUtil;
 import com.lkp.neo4j.client.GraphClient;
 import com.lkp.neo4j.entity.BlockHeight;
+import com.lkp.neo4j.entity.BlockWithHeight;
 import com.lkp.neo4j.entity.MyBlock;
 import com.lkp.neo4j.entity.TransactionEntity;
 import com.lkp.neo4j.entity.TxRelation;
@@ -36,7 +36,7 @@ public class AsyncSaveGraphTask {
 	@Autowired
 	private GraphClient graphClient;
 	
-	@Autowired
+	//@Autowired
 	private BlockChainApi blockApi;
 	
 	 @Autowired
@@ -53,6 +53,13 @@ public class AsyncSaveGraphTask {
 		logger.info("AsyncSaveGraphTask end  consume:"+blockhash);
 	}
 	
+	
+	/**
+	 * 从myblock中取出数据并解析成TransactionEntity重新存储到mdb
+	 * @param height
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
 	@Async  
     public void saveBlockTx(String height) throws InterruptedException, ExecutionException{  
 		BlockQueue.heightSet.add(Integer.parseInt(height));
@@ -88,15 +95,47 @@ public class AsyncSaveGraphTask {
 	    
 		
 	}
-	
-	
+	/**
+	 * 将mdb的myblock数据解析交易关系后保存到图数据库：arangodb或neo4j或其他图数据库
+	 * @param height
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
 	@Async  
-    public void saveBlock(String blockhash,int height) throws InterruptedException, ExecutionException{  
-		org.bitcoinj.core.Block block = fetchBlock.getBlock(blockhash);
+    public void saveTxToGraph(String height) throws InterruptedException, ExecutionException{  
 		
+	}
+	
+	/**
+	 * 直接从区块链网上下载数据，并转成MyBlock对象
+	 * @param blockhash
+	 * @param height
+	 * @throws InterruptedException
+	 * @throws ExecutionException
+	 */
+	@Async  
+    public void saveMyBlock(String blockhash,int height) throws InterruptedException, ExecutionException{  
+		org.bitcoinj.core.Block block = fetchBlock.getBlock(blockhash);
 		MyBlock myBlock = BlockUtil.blockTransfer(block);
 		myBlock.setHeight(height);
 		mongoTemplate.save(myBlock);
+		
+	}
+	
+	@Async  
+    public void saveBlockWithHeight(String blockhash) throws InterruptedException, ExecutionException{ 
+		while(true){
+			com.neemre.btcdcli4j.core.domain.Block block = blockApi.getBlock(blockhash);
+			BlockWithHeight blockWithHeight = new BlockWithHeight();
+			blockWithHeight.setBlockhash(blockhash);
+			blockWithHeight.setHeight(block.getHeight());
+			blockWithHeight.setNextBlockHash(block.getNextBlockHash());
+			blockWithHeight.setPreBlockHash(block.getPreviousBlockHash());
+			mongoTemplate.save(blockWithHeight);
+			blockhash = block.getNextBlockHash();
+			logger.info("save blockwithheight "+block.getHeight()+" success");
+		}
+		
 		
 	}
 	
@@ -151,18 +190,41 @@ public class AsyncSaveGraphTask {
     	logger.info("begin save block:"+blockhash+" transaction relation");
     	long start = System.currentTimeMillis();
     	Block block = blockApi.getBlock(blockhash);
+    	 
     	List<String> txList = block.getTx();
-    	logger.info("block "+ blockhash+" total have transaction "+txList.size());
-    	for(String txid : txList){
+    	if(!txList.isEmpty()){
+    		String txid = txList.get(0);
     		try{
     			TransactionEntity txEntity = blockApi.getTx(txid);
+    			String address = txEntity.getOutTxRelationList().get(0).getAddress();
+    			String money = txEntity.getOutTxRelationList().get(0).getMoney();
+    			String index = txEntity.getOutTxRelationList().get(0).getInTx();
+    			String outTx = txEntity.getOutTxRelationList().get(0).getOutTx();
+    			
+    			TxRelation relation = new TxRelation();
+    			relation.setAddress(address);
+    			relation.setMoney(money);
+    			relation.setOutTx(outTx);
+    			//relation.set
+    			System.out.println(txEntity.getOutTxRelationList().get(0).getAddress());
         		txEntity.setHeight(block.getHeight());
         		graphClient.saveTransactionInfo(mongoTemplate,txEntity);
     		}catch(Exception e){
     			logger.error("save tx "+ txid+" error:"+e.getMessage(),e);
     		}
-    		
     	}
+//    	logger.info("block "+ blockhash+" total have transaction "+txList.size());
+//    	for(String txid : txList){
+//    		try{
+//    			TransactionEntity txEntity = blockApi.getTx(txid);
+//    			System.out.println(txEntity.getOutTxRelationList().get(0).getAddress());
+//        		txEntity.setHeight(block.getHeight());
+//        		graphClient.saveTransactionInfo(mongoTemplate,txEntity);
+//    		}catch(Exception e){
+//    			logger.error("save tx "+ txid+" error:"+e.getMessage(),e);
+//    		}
+//    		
+//    	}
     	logger.info("save block :"+blockhash+" success,total have transaction "+
     				txList.size()+", spend:"+(System.currentTimeMillis() - start));
     	//logger.info(" save block "+blockhash+" transaction relation success , total "+txList.size() +" transaction");

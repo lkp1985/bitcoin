@@ -3,6 +3,8 @@ package com.lkp.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.bitcoinj.core.Block;
 import org.bitcoinj.core.TransactionInput;
 import org.bitcoinj.core.TransactionOutput;
@@ -20,6 +22,8 @@ import com.lkp.neo4j.entity.TxRelation;
  *
  */
 public class BlockUtil {
+	static Log logger = LogFactory.getLog(BlockUtil.class);
+	@SuppressWarnings("deprecation")
 	public static MyBlock blockTransfer(Block block){
 		MyBlock myBlock = new MyBlock();
 		
@@ -41,39 +45,39 @@ public class BlockUtil {
 			baseTransaction.setTxid(transaction.getHashAsString());
 			for(TransactionOutput output : outputList){
 				OutputTransaction baseOutput = new OutputTransaction();
-				baseOutputList.add(baseOutput);
+				
 				try{ 
-				//	output.toString();
-					if(output.getScriptPubKey().isSentToAddress()||output.getScriptPubKey().isPayToScriptHash()){
-						String address = output.getScriptPubKey().getToAddress(output.getParams()).toString();
-						baseOutput.setOutaddress(address);
+					String address =null;
+					try{
+						address = output.getScriptPubKey().getToAddress(output.getParams()).toString();
+					}catch(Exception e){
+						address  = output.getScriptPubKey().getFromAddress(output.getParams()).toString();
+					} 
+					if(address!=null){//这里可能要考虑隔离验证产生的output: SegWit commitment output
 						long value = output.getValue().value;
 						baseOutput.setMoney(value+"");
 						baseOutput.setIndex(output.getIndex());
-					}else{//coinbase 
-						String address=output.getScriptPubKey().getFromAddress(output.getParams()).toString();
-						baseOutput.setOutaddress(address); 
-						baseOutput.setMoney(output.getValue().getValue()+""); 
-						baseOutput.setIndex(0);
+						baseOutput.setOutaddress(address);
+						baseOutputList.add(baseOutput);
 					}
 				}catch(Exception e){ 
-					e.printStackTrace();
+					logger.error("block:"+blockhash+" error:"+e.getMessage());
 				}
-				
-				
 			}
-			
 			for(TransactionInput input : inputList){
 				InputTransaction baseInput = new InputTransaction();
-				baseInputList.add(baseInput); 
-				input.toString();
-				if(!input.isCoinBase())
-					
+				if(!input.isCoinBase()){//如果是coinbase,暂时不添加
 					baseInput.setTxid(input.getOutpoint().getHash().toString());
 					baseInput.setIndex((int)input.getOutpoint().getIndex());
-				} 
+					baseInputList.add(baseInput); 
+				}else{
+//					baseInput.setTxid(transaction.getHashAsString());//以当前交易ID为上个交易的txid,index=-1
+//					baseInput.setIndex(-1);//或(int)input.getOutpoint().getIndex()
+//					baseInputList.add(baseInput); 
+				}
 				 				
 			}
+		}
 		return myBlock;
 	}
 	

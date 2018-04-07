@@ -38,7 +38,7 @@ public class BlockChainApi {
 	BtcdClient client ;
 	
 	public BlockChainApi(){
-		//init();
+		init();
 	}
 	
 	/**
@@ -168,6 +168,7 @@ public class BlockChainApi {
 			CloseableHttpClient httpProvider = BlockResourceUtils.getHttpProvider();
 			Properties nodeConfig = BlockResourceUtils.getNodeConfig();
 			client = new VerboseBtcdClientImpl(httpProvider, nodeConfig);
+			System.out.println("client api init success:"+client);
 		}catch(Exception e){
 			e.printStackTrace();
 		}
